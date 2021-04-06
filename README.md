@@ -11,6 +11,7 @@ This script will create a formatted reddit table from a list of steam games.
 
 - Install the requirements (python + requests library)
 - Clone the repo
+- Check how to use the script with:
 
 ```
 python game_deals.py -h
@@ -38,8 +39,6 @@ https://store.steampowered.com/app/255710/Cities_Skylines/
 This will create a file named `TIMESTAMP_game_deals.txt` with the game data following the reddit markdown format.
 
 ## Credits
-
-This script use APIs from:
 
 - [Steam](https://store.steampowered.com/)
 - [IsThereAnyDeal](https://isthereanydeal.com/)
