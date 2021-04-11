@@ -33,27 +33,30 @@ def get_steam_info(appid):
     )
     reviews_dict = requests.get(url_reviews).json()
     reviews_dict_data = reviews_dict["query_summary"]
-    return {
-        "appid": appid,
-        "name": info_dict_data["name"] if "name" in info_dict_data else None,
-        "platforms": ", ".join(
-            [k.title() for k, v in info_dict_data["platforms"].items() if v]
-        )
-        if "platforms" in info_dict_data
-        else None,
-        "release_date": info_dict_data["release_date"]
-        if "release_date" in info_dict_data
-        else None,
-        "review_score_desc": reviews_dict_data["review_score_desc"]
-        if "review_score_desc" in reviews_dict_data
-        else None,
-        "total_positive": reviews_dict_data["total_positive"]
-        if "total_positive" in reviews_dict_data
-        else None,
-        "total_reviews": reviews_dict_data["total_reviews"]
-        if "total_reviews" in reviews_dict_data
-        else None,
-    }
+    if info_dict_data and reviews_dict_data:
+        return {
+            "appid": appid,
+            "name": info_dict_data["name"] if "name" in info_dict_data else None,
+            "platforms": ", ".join(
+                [k.title() for k, v in info_dict_data["platforms"].items() if v]
+            )
+            if "platforms" in info_dict_data
+            else None,
+            "release_date": info_dict_data["release_date"]
+            if "release_date" in info_dict_data
+            else None,
+            "review_score_desc": reviews_dict_data["review_score_desc"]
+            if "review_score_desc" in reviews_dict_data
+            else None,
+            "total_positive": reviews_dict_data["total_positive"]
+            if "total_positive" in reviews_dict_data
+            else None,
+            "total_reviews": reviews_dict_data["total_reviews"]
+            if "total_reviews" in reviews_dict_data
+            else None,
+        }
+    else:
+        return {}
 
 
 def get_itad_plain(api_key, appid):
@@ -83,7 +86,7 @@ def get_itad_historical_low(api_key, plain, region, country):
 def get_itad_current_price(api_key, appid, plain, region, country):
     url = f"https://api.isthereanydeal.com/v01/game/prices/?key={api_key}&plains={plain}&region={region}&country={country}&shops=steam&added=0"
     result = requests.get(url).json()
-    # for some reasons there are sometimes several entries for one game. Get the one with the correct Steam URL
+    # for some reasons there are sometimes several entries for one game. Get the one with the correct Steam URL.
     correct_result = None
     for x in result["data"][plain]["list"]:
         if str(appid) in x["url"]:
@@ -95,7 +98,6 @@ def get_itad_current_price(api_key, appid, plain, region, country):
             "current_price_currency": result[".meta"]["currency"],
             "current_price_shop": correct_result["shop"]["name"],
         }
-
     else:
         return {}
 
@@ -104,27 +106,49 @@ def get_itad_infos(api_key, appid):
     plain = get_itad_plain(api_key, appid)
     historical_low = get_itad_historical_low(api_key, plain, "us", "US")
     current_price = get_itad_current_price(api_key, appid, plain, "us", "US")
+    if plain and historical_low and current_price:
+        return {
+            "appid": appid,
+            "plain": plain,
+            "historical_low_price": historical_low["historical_low_price"]
+            if "historical_low_price" in historical_low
+            else None,
+            "historical_low_currency": historical_low["historical_low_currency"]
+            if "historical_low_currency" in historical_low
+            else None,
+            "historical_low_shop": historical_low["historical_low_shop"]
+            if "historical_low_shop" in historical_low
+            else None,
+            "current_price_price": current_price["current_price_price"]
+            if "current_price_price" in current_price
+            else None,
+            "current_price_currency": current_price["current_price_currency"]
+            if "current_price_currency" in current_price
+            else None,
+            "current_price_shop": current_price["current_price_shop"]
+            if "current_price_shop" in current_price
+            else None,
+        }
+    else:
+        return {}
+
+
+def get_opencritic_id(search):
+    url = f"https://api.opencritic.com/api/game/search?criteria={search}"
+    result = requests.get(url).json()
+
+    return result[0]["id"]
+
+
+def get_opencritic_infos(search):
+    opencritic_id = get_opencritic_id(search)
+    url = f"https://api.opencritic.com/api/game/{opencritic_id}"
+    result = requests.get(url).json()
+
     return {
-        "appid": appid,
-        "plain": plain,
-        "historical_low_price": historical_low["historical_low_price"]
-        if "historical_low_price" in historical_low
-        else None,
-        "historical_low_currency": historical_low["historical_low_currency"]
-        if "historical_low_currency" in historical_low
-        else None,
-        "historical_low_shop": historical_low["historical_low_shop"]
-        if "historical_low_shop" in historical_low
-        else None,
-        "current_price_price": current_price["current_price_price"]
-        if "current_price_price" in current_price
-        else None,
-        "current_price_currency": current_price["current_price_currency"]
-        if "current_price_currency" in current_price
-        else None,
-        "current_price_shop": current_price["current_price_shop"]
-        if "current_price_shop" in current_price
-        else None,
+        "opencritic_tier": result["tier"],
+        "opencritic_median_score": result["medianScore"],
+        "opencritic_reviews_number": result["numReviews"],
     }
 
 
@@ -141,16 +165,19 @@ def get_game_infos(urls):
             steam_infos = get_steam_info(appid)
             # ITAD
             itad_infos = get_itad_infos(itad_api, appid)
+            # Opencritic
+            opencritic_infos = get_opencritic_infos(steam_infos["name"])
+            # HowLongToBeat
             list_game_infos.append(
                 {
                     "appid": appid,
                     "url": url,
                     "steam": steam_infos,
                     "itad": itad_infos,
+                    "opencritic": opencritic_infos,
                 }
             )
 
-    # format all
     return list_game_infos
 
 
@@ -192,7 +219,7 @@ def format_game_info(game_info):
         f"|{historical_low}"
         f"|{game_info['steam']['platforms']}"
         # TODO Opencritic
-        f"|TODO"
+        f"|{game_info['opencritic']['opencritic_median_score']}"
         # TODO HowLongToBeat
         f"|TODO"
         f"||"
