@@ -3,6 +3,7 @@ import time
 import argparse
 import requests
 import configparser
+from howlongtobeatpy import HowLongToBeat
 
 logger = logging.getLogger()
 temps_debut = time.time()
@@ -152,6 +153,28 @@ def get_opencritic_infos(search):
     }
 
 
+def get_howlongtobeat_infos(search):
+    results = HowLongToBeat().search(search)
+    if results:
+        return {
+            "howlongtobeat_main": results[0].gameplay_main,
+            "howlongtobeat_main_unit": results[0].gameplay_main_unit,
+            "howlongtobeat_main_extra": results[0].gameplay_main_extra,
+            "howlongtobeat_main_extra_unit": results[0].gameplay_main_extra_unit,
+            "howlongtobeat_completionist": results[0].gameplay_completionist,
+            "howlongtobeat_completionist_unit": results[0].gameplay_completionist_unit,
+        }
+    else:
+        return {
+            # "howlongtobeat_main": "",
+            # "howlongtobeat_main_unit": "",
+            # "howlongtobeat_main_extra": "",
+            # "howlongtobeat_main_extra_unit": "",
+            # "howlongtobeat_completionist": "",
+            # "howlongtobeat_completionist_unit": "",
+        }
+
+
 def get_game_infos(urls):
     config = read_config()
     itad_api = config["ITAD"]["api_key"]
@@ -168,6 +191,7 @@ def get_game_infos(urls):
             # Opencritic
             opencritic_infos = get_opencritic_infos(steam_infos["name"])
             # HowLongToBeat
+            howlongtobeat_infos = get_howlongtobeat_infos(steam_infos["name"])
             list_game_infos.append(
                 {
                     "appid": appid,
@@ -175,6 +199,7 @@ def get_game_infos(urls):
                     "steam": steam_infos,
                     "itad": itad_infos,
                     "opencritic": opencritic_infos,
+                    "howlongtobeat": howlongtobeat_infos,
                 }
             )
 
@@ -211,6 +236,20 @@ def format_game_info(game_info):
         and game_info["itad"]["historical_low_shop"]
         else " "
     )
+    howlongtobeat_main = (
+        game_info["howlongtobeat"]["howlongtobeat_main"]
+        if "howlongtobeat" in game_info
+        and "howlongtobeat_main" in game_info["howlongtobeat"]
+        and game_info["howlongtobeat"]["howlongtobeat_main"] not in [-1]
+        else ""
+    )
+    howlongtobeat_main_unit = (
+        game_info["howlongtobeat"]["howlongtobeat_main_unit"]
+        if "howlongtobeat" in game_info
+        and "howlongtobeat_main_unit" in game_info["howlongtobeat"]
+        and game_info["howlongtobeat"]["howlongtobeat_main_unit"]
+        else ""
+    )
     # breakpoint()
     return (
         f"|[{game_info['steam']['name']}]({game_info['url']})"
@@ -218,10 +257,10 @@ def format_game_info(game_info):
         f"|{current_price}"
         f"|{historical_low}"
         f"|{game_info['steam']['platforms']}"
-        # TODO Opencritic
+        # Opencritic
         f"|{game_info['opencritic']['opencritic_median_score']}"
-        # TODO HowLongToBeat
-        f"|TODO"
+        # HowLongToBeat
+        f"|{howlongtobeat_main} {howlongtobeat_main_unit}"
         f"||"
     )
 
