@@ -4,9 +4,19 @@ import argparse
 import requests
 import configparser
 from howlongtobeatpy import HowLongToBeat
+from statistics import mean
 
 logger = logging.getLogger()
 temps_debut = time.time()
+
+PROTONDB_RATINGS = {
+    "Platinum": 5,
+    "Gold": 4,
+    "Silver": 3,
+    "Bronze": 2,
+    "Borked": 1,
+    "Borked": 0,
+}
 
 
 def read_config():
@@ -154,25 +164,33 @@ def get_opencritic_infos(search):
 
 
 def get_howlongtobeat_infos(search):
-    results = HowLongToBeat().search(search)
-    if results:
+    result = HowLongToBeat().search(search)
+    if result:
         return {
-            "howlongtobeat_main": results[0].gameplay_main,
-            "howlongtobeat_main_unit": results[0].gameplay_main_unit,
-            "howlongtobeat_main_extra": results[0].gameplay_main_extra,
-            "howlongtobeat_main_extra_unit": results[0].gameplay_main_extra_unit,
-            "howlongtobeat_completionist": results[0].gameplay_completionist,
-            "howlongtobeat_completionist_unit": results[0].gameplay_completionist_unit,
+            "howlongtobeat_url": result[0].game_web_link,
+            "howlongtobeat_main": result[0].gameplay_main,
+            "howlongtobeat_main_unit": result[0].gameplay_main_unit,
+            "howlongtobeat_main_extra": result[0].gameplay_main_extra,
+            "howlongtobeat_main_extra_unit": result[0].gameplay_main_extra_unit,
+            "howlongtobeat_completionist": result[0].gameplay_completionist,
+            "howlongtobeat_completionist_unit": result[0].gameplay_completionist_unit,
         }
     else:
-        return {
-            # "howlongtobeat_main": "",
-            # "howlongtobeat_main_unit": "",
-            # "howlongtobeat_main_extra": "",
-            # "howlongtobeat_main_extra_unit": "",
-            # "howlongtobeat_completionist": "",
-            # "howlongtobeat_completionist_unit": "",
-        }
+        return {}
+
+
+def get_protondb_infos(appid):
+    url = f"https://protondb.max-p.me/games/{appid}/reports"
+    protondb_url = f"https://www.protondb.com/app/{appid}"
+    result = requests.get(url).json()
+    mean_score = 0
+    if len(result) > 0:
+        tiers = [x["rating"] for x in result]
+        mean_score = int(round(mean([PROTONDB_RATINGS[x] for x in tiers]), 0))
+    rating = list(PROTONDB_RATINGS.keys())[
+        list(PROTONDB_RATINGS.values()).index(mean_score)
+    ]
+    return {"protondb_url": protondb_url, "protondb_rating": rating}
 
 
 def get_game_infos(urls):
@@ -192,6 +210,8 @@ def get_game_infos(urls):
             opencritic_infos = get_opencritic_infos(steam_infos["name"])
             # HowLongToBeat
             howlongtobeat_infos = get_howlongtobeat_infos(steam_infos["name"])
+            # ProtonDB
+            # protondb_infos = get_protondb_infos(appid)
             list_game_infos.append(
                 {
                     "appid": appid,
@@ -200,6 +220,7 @@ def get_game_infos(urls):
                     "itad": itad_infos,
                     "opencritic": opencritic_infos,
                     "howlongtobeat": howlongtobeat_infos,
+                    # "protondb": protondb_infos,
                 }
             )
 
@@ -250,24 +271,48 @@ def format_game_info(game_info):
         and game_info["howlongtobeat"]["howlongtobeat_main_unit"]
         else ""
     )
+    howlongtobeat_url = (
+        game_info["howlongtobeat"]["howlongtobeat_url"]
+        if "howlongtobeat" in game_info
+        and "howlongtobeat_url" in game_info["howlongtobeat"]
+        and game_info["howlongtobeat"]["howlongtobeat_url"]
+        else ""
+    )
+    howlongtobeat_format = (
+        f"[{howlongtobeat_main} {howlongtobeat_main_unit}]({howlongtobeat_url})"
+        if howlongtobeat_main != ""
+        and howlongtobeat_main_unit != ""
+        and howlongtobeat_url != ""
+        else ""
+    )
+    release_date = (
+        f"{game_info['steam']['release_date']['date']}"
+        if "date" in game_info["steam"]["release_date"]
+        else ""
+    )
     # breakpoint()
     return (
         f"|[{game_info['steam']['name']}]({game_info['url']})"
         f"|{game_info['steam']['review_score_desc']} ({percentage_reviews}% of {game_info['steam']['total_reviews']})"
+        f"|{release_date}"
         f"|{current_price}"
         f"|{historical_low}"
         f"|{game_info['steam']['platforms']}"
         # Opencritic
         f"|{game_info['opencritic']['opencritic_median_score']}"
         # HowLongToBeat
-        f"|{howlongtobeat_main} {howlongtobeat_main_unit}"
+        f"|{howlongtobeat_format}"
+        # ProtonDB
+        # f"|[{game_info['protondb']['protondb_rating']}]({game_info['protondb']['protondb_url']})"
         f"||"
     )
 
 
 def create_output(game_infos):
-    header = "|Game|Steam Reviews (All)|Steam Price|Historic Lowest Steam Price|Platform|Opencritic (TCA/100)|[How Long To Beat?](https://howlongtobeat.com/) Main Story : Hours|Additional Information|"
-    separator = "|:-|:-|:-|:-|:-|:-|:-|:-|"
+    header = "|Game|Steam Reviews (All)|Release Date|Steam Price|Historic Lowest Steam Price|Platform|Opencritic (TCA/100)|[How Long To Beat?](https://howlongtobeat.com/) Main Story : Hours|Additional Information|"
+    # header = "|Game|Steam Reviews (All)|Steam Price|Historic Lowest Steam Price|Platform|Opencritic (TCA/100)|[How Long To Beat?](https://howlongtobeat.com/) Main Story : Hours|ProtonDB Rating|Additional Information|"
+    # separator = "|:-|:-|:-|:-|:-|:-|:-|:-|"
+    separator = "|:-|:-|:-|:-|:-|:-|:-|:-|:-|"
     content = [format_game_info(x) for x in game_infos]
     content.insert(0, separator)
     content.insert(0, header)
