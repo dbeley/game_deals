@@ -342,7 +342,17 @@ def format_game_info(game_info):
 
 
 def create_output(game_infos):
-    header = "|Game|Steam Reviews (All)|Release Date|Steam Price|Historic Lowest Steam Price|Platforms|Opencritic (TCA/100)|[How Long To Beat?](https://howlongtobeat.com/) Main Story: Hours|"
+    header = (
+        "|Game"
+        "|Steam Reviews"
+        "|Release Date"
+        "|Steam Price"
+        "|Historic Lowest Price"
+        "|Platforms"
+        "|[Opencritic](https://opencritic.com/) (TCA/100)"
+        "|[How Long To Beat?](https://howlongtobeat.com/) Main Story: Hours"
+        "|"
+    )
     separator = "|:-|:-|:-|:-|:-|:-|:-|:-|"
     content = [format_game_info(x) for x in game_infos]
     content.insert(0, separator)
