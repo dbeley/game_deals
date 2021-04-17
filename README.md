@@ -42,3 +42,5 @@ This will create a file named `TIMESTAMP_game_deals.txt`.
 
 - [Steam](https://store.steampowered.com/)
 - [IsThereAnyDeal](https://isthereanydeal.com/)
+- [Opencritic](https://opencritic.com/)
+- [HowLongToBeat](https://howlongtobeat.com/)
