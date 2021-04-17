@@ -10,11 +10,10 @@ logger = logging.getLogger()
 temps_debut = time.time()
 
 PROTONDB_RATINGS = {
-    "Platinum": 5,
-    "Gold": 4,
-    "Silver": 3,
-    "Bronze": 2,
-    "Borked": 1,
+    "Platinum": 4,
+    "Gold": 3,
+    "Silver": 2,
+    "Bronze": 1,
     "Borked": 0,
 }
 
@@ -67,7 +66,8 @@ def get_steam_info(appid):
             else None,
         }
     else:
-        return {}
+        logger.error(f"Couldn't retrieve Steam infos for game {appid}.")
+        return None
 
 
 def get_itad_plain(api_key, appid):
@@ -76,8 +76,7 @@ def get_itad_plain(api_key, appid):
     logger.debug(f"{url}: {result}")
     if result:
         return result["data"]["plain"]
-    else:
-        return None
+    return None
 
 
 def get_itad_historical_low(api_key, plain, region, country):
@@ -91,7 +90,7 @@ def get_itad_historical_low(api_key, plain, region, country):
             "historical_low_shop": result["data"][plain]["shop"]["name"],
         }
     else:
-        return {}
+        return None
 
 
 def get_itad_current_price(api_key, appid, plain, region, country):
@@ -110,10 +109,11 @@ def get_itad_current_price(api_key, appid, plain, region, country):
             "current_price_shop": correct_result["shop"]["name"],
         }
     else:
-        return {}
+        return None
 
 
 def get_itad_infos(api_key, appid):
+    # plain is the internal itad id for a game
     plain = get_itad_plain(api_key, appid)
     historical_low = get_itad_historical_low(api_key, plain, "us", "US")
     current_price = get_itad_current_price(api_key, appid, plain, "us", "US")
@@ -141,26 +141,31 @@ def get_itad_infos(api_key, appid):
             else None,
         }
     else:
-        return {}
+        return None
 
 
 def get_opencritic_id(search):
     url = f"https://api.opencritic.com/api/game/search?criteria={search}"
     result = requests.get(url).json()
 
-    return result[0]["id"]
+    if result:
+        return result[0]["id"]
+    else:
+        return None
 
 
 def get_opencritic_infos(search):
     opencritic_id = get_opencritic_id(search)
-    url = f"https://api.opencritic.com/api/game/{opencritic_id}"
-    result = requests.get(url).json()
+    if opencritic_id:
+        url = f"https://api.opencritic.com/api/game/{opencritic_id}"
+        result = requests.get(url).json()
 
-    return {
-        "opencritic_tier": result["tier"],
-        "opencritic_median_score": result["medianScore"],
-        "opencritic_reviews_number": result["numReviews"],
-    }
+        return {
+            "opencritic_tier": result["tier"],
+            "opencritic_median_score": result["medianScore"],
+            "opencritic_reviews_number": result["numReviews"],
+        }
+    return None
 
 
 def get_howlongtobeat_infos(search):
@@ -175,11 +180,11 @@ def get_howlongtobeat_infos(search):
             "howlongtobeat_completionist": result[0].gameplay_completionist,
             "howlongtobeat_completionist_unit": result[0].gameplay_completionist_unit,
         }
-    else:
-        return {}
+    return None
 
 
 def get_protondb_infos(appid):
+    # TODO
     url = f"https://protondb.max-p.me/games/{appid}/reports"
     protondb_url = f"https://www.protondb.com/app/{appid}"
     result = requests.get(url).json()
@@ -204,25 +209,31 @@ def get_game_infos(urls):
         if appid:
             # Steam
             steam_infos = get_steam_info(appid)
-            # ITAD
-            itad_infos = get_itad_infos(itad_api, appid)
-            # Opencritic
-            opencritic_infos = get_opencritic_infos(steam_infos["name"])
-            # HowLongToBeat
-            howlongtobeat_infos = get_howlongtobeat_infos(steam_infos["name"])
-            # ProtonDB
-            # protondb_infos = get_protondb_infos(appid)
-            list_game_infos.append(
-                {
-                    "appid": appid,
-                    "url": url,
-                    "steam": steam_infos,
-                    "itad": itad_infos,
-                    "opencritic": opencritic_infos,
-                    "howlongtobeat": howlongtobeat_infos,
-                    # "protondb": protondb_infos,
-                }
-            )
+            logger.debug(f"Steam: {steam_infos}")
+            if steam_infos:
+                # ITAD
+                itad_infos = get_itad_infos(itad_api, appid)
+                logger.debug(f"ITAD: {itad_infos}")
+                # Opencritic
+                opencritic_infos = get_opencritic_infos(steam_infos["name"])
+                logger.debug(f"Opencritic: {opencritic_infos}")
+                # HowLongToBeat
+                howlongtobeat_infos = get_howlongtobeat_infos(steam_infos["name"])
+                logger.debug(f"HowLongToBeat: {howlongtobeat_infos}")
+                # ProtonDB
+                # protondb_infos = get_protondb_infos(appid)
+                # logger.debug(f"ProtonDB: {protondb_infos}")
+                list_game_infos.append(
+                    {
+                        "appid": appid,
+                        "url": url,
+                        "steam": steam_infos,
+                        "itad": itad_infos,
+                        "opencritic": opencritic_infos,
+                        "howlongtobeat": howlongtobeat_infos,
+                        # "protondb": protondb_infos,
+                    }
+                )
 
     return list_game_infos
 
@@ -234,85 +245,105 @@ def format_game_info(game_info):
         * 100,
         2,
     )
-    current_price = (
-        (
-            f"{round(game_info['itad']['current_price_price'], 2)}"
-            f" {game_info['itad']['current_price_currency']}"
-            # Not necessary, always Steam
-            # f" @{game_info['itad']['current_price_shop']}"
-        )
-        if game_info["itad"]["current_price_price"]
-        and game_info["itad"]["current_price_currency"]
-        and game_info["itad"]["current_price_shop"]
-        else " "
-    )
-    historical_low = (
-        (
-            f"{round(game_info['itad']['historical_low_price'], 2)}"
-            f" {game_info['itad']['historical_low_currency']}"
-            f" @{game_info['itad']['historical_low_shop']}"
-        )
-        if game_info["itad"]["historical_low_price"]
-        and game_info["itad"]["historical_low_currency"]
-        and game_info["itad"]["historical_low_shop"]
-        else " "
-    )
-    howlongtobeat_main = (
-        game_info["howlongtobeat"]["howlongtobeat_main"]
-        if "howlongtobeat" in game_info
-        and "howlongtobeat_main" in game_info["howlongtobeat"]
-        and game_info["howlongtobeat"]["howlongtobeat_main"] not in [-1]
-        else ""
-    )
-    howlongtobeat_main_unit = (
-        game_info["howlongtobeat"]["howlongtobeat_main_unit"]
-        if "howlongtobeat" in game_info
-        and "howlongtobeat_main_unit" in game_info["howlongtobeat"]
-        and game_info["howlongtobeat"]["howlongtobeat_main_unit"]
-        else ""
-    )
-    howlongtobeat_url = (
-        game_info["howlongtobeat"]["howlongtobeat_url"]
-        if "howlongtobeat" in game_info
-        and "howlongtobeat_url" in game_info["howlongtobeat"]
-        and game_info["howlongtobeat"]["howlongtobeat_url"]
-        else ""
-    )
-    howlongtobeat_format = (
-        f"[{howlongtobeat_main} {howlongtobeat_main_unit}]({howlongtobeat_url})"
-        if howlongtobeat_main != ""
-        and howlongtobeat_main_unit != ""
-        and howlongtobeat_url != ""
-        else ""
-    )
     release_date = (
         f"{game_info['steam']['release_date']['date']}"
         if "date" in game_info["steam"]["release_date"]
         else ""
     )
+    platforms = game_info["steam"]["platforms"]
+    name = game_info["steam"]["name"]
+    url = game_info["url"]
+    review_score_desc = game_info["steam"]["review_score_desc"]
+    total_reviews = game_info["steam"]["total_reviews"]
+
+    if game_info["itad"]:
+        current_price = (
+            (
+                f"{round(game_info['itad']['current_price_price'], 2)}"
+                f" {game_info['itad']['current_price_currency']}"
+            )
+            if game_info["itad"]["current_price_price"]
+            and game_info["itad"]["current_price_currency"]
+            and game_info["itad"]["current_price_shop"]
+            else " "
+        )
+        historical_low = (
+            (
+                f"{round(game_info['itad']['historical_low_price'], 2)}"
+                f" {game_info['itad']['historical_low_currency']}"
+                f" @{game_info['itad']['historical_low_shop']}"
+            )
+            if game_info["itad"]["historical_low_price"]
+            and game_info["itad"]["historical_low_currency"]
+            and game_info["itad"]["historical_low_shop"]
+            else " "
+        )
+    else:
+        current_price = ""
+        historical_low = ""
+
+    if game_info["howlongtobeat"]:
+        howlongtobeat_main = (
+            game_info["howlongtobeat"]["howlongtobeat_main"]
+            if "howlongtobeat" in game_info
+            and "howlongtobeat_main" in game_info["howlongtobeat"]
+            and game_info["howlongtobeat"]["howlongtobeat_main"] not in [-1]
+            else ""
+        )
+        howlongtobeat_main_unit = (
+            game_info["howlongtobeat"]["howlongtobeat_main_unit"]
+            if "howlongtobeat" in game_info
+            and "howlongtobeat_main_unit" in game_info["howlongtobeat"]
+            and game_info["howlongtobeat"]["howlongtobeat_main_unit"]
+            else ""
+        )
+        howlongtobeat_url = (
+            game_info["howlongtobeat"]["howlongtobeat_url"]
+            if "howlongtobeat" in game_info
+            and "howlongtobeat_url" in game_info["howlongtobeat"]
+            and game_info["howlongtobeat"]["howlongtobeat_url"]
+            else ""
+        )
+        howlongtobeat_format = (
+            f"[{howlongtobeat_main} {howlongtobeat_main_unit}]({howlongtobeat_url})"
+            if howlongtobeat_main != ""
+            and howlongtobeat_main_unit != ""
+            and howlongtobeat_url != ""
+            else ""
+        )
+    else:
+        howlongtobeat_main = ""
+        howlongtobeat_main_unit = ""
+        howlongtobeat_url = ""
+        howlongtobeat_format = ""
+
+    if game_info["opencritic"]:
+        opencritic_median_score = game_info["opencritic"]["opencritic_median_score"]
+    else:
+        opencritic_median_score = ""
+
     # breakpoint()
     return (
-        f"|[{game_info['steam']['name']}]({game_info['url']})"
-        f"|{game_info['steam']['review_score_desc']} ({percentage_reviews}% of {game_info['steam']['total_reviews']})"
+        f"|[{name}]({url})"
+        f"|{review_score_desc} ({percentage_reviews}% of {total_reviews})"
         f"|{release_date}"
         f"|{current_price}"
         f"|{historical_low}"
-        f"|{game_info['steam']['platforms']}"
+        f"|{platforms}"
         # Opencritic
-        f"|{game_info['opencritic']['opencritic_median_score']}"
+        f"|{opencritic_median_score}"
         # HowLongToBeat
         f"|{howlongtobeat_format}"
         # ProtonDB
         # f"|[{game_info['protondb']['protondb_rating']}]({game_info['protondb']['protondb_url']})"
-        f"||"
+        # f"||"
+        f"|"
     )
 
 
 def create_output(game_infos):
-    header = "|Game|Steam Reviews (All)|Release Date|Steam Price|Historic Lowest Steam Price|Platform|Opencritic (TCA/100)|[How Long To Beat?](https://howlongtobeat.com/) Main Story : Hours|Additional Information|"
-    # header = "|Game|Steam Reviews (All)|Steam Price|Historic Lowest Steam Price|Platform|Opencritic (TCA/100)|[How Long To Beat?](https://howlongtobeat.com/) Main Story : Hours|ProtonDB Rating|Additional Information|"
-    # separator = "|:-|:-|:-|:-|:-|:-|:-|:-|"
-    separator = "|:-|:-|:-|:-|:-|:-|:-|:-|:-|"
+    header = "|Game|Steam Reviews (All)|Release Date|Steam Price|Historic Lowest Steam Price|Platforms|Opencritic (TCA/100)|[How Long To Beat?](https://howlongtobeat.com/) Main Story: Hours|"
+    separator = "|:-|:-|:-|:-|:-|:-|:-|:-|"
     content = [format_game_info(x) for x in game_infos]
     content.insert(0, separator)
     content.insert(0, header)
