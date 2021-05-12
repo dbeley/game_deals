@@ -317,10 +317,10 @@ def format_game_info(game_info):
         howlongtobeat_url = ""
         howlongtobeat_format = ""
 
+    opencritic_median_score = ""
     if game_info["opencritic"]:
-        opencritic_median_score = game_info["opencritic"]["opencritic_median_score"]
-    else:
-        opencritic_median_score = ""
+        if game_info["opencritic"]["opencritic_median_score"] > -1:
+            opencritic_median_score = game_info["opencritic"]["opencritic_median_score"]
 
     # breakpoint()
     return (
