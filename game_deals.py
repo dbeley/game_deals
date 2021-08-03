@@ -238,6 +238,39 @@ def get_game_infos(urls):
     return list_game_infos
 
 
+def parse_release_date(release_date):
+    """Transform '4 Feb, 2021' to '2021-02-04'"""
+    months = {
+        "Jan": "01",
+        "Feb": "02",
+        "Mar": "03",
+        "Apr": "04",
+        "May": "05",
+        "Jun": "06",
+        "Jul": "07",
+        "Aug": "08",
+        "Sep": "09",
+        "Oct": "10",
+        "Nov": "11",
+        "Dec": "12",
+        # Sometimes the steam API returns date in other languages
+        "июн": "06",
+        "июл": "07",
+        "października": "10",
+        "sierpnia": "08",
+        "авг": "08",
+        "мая": "03",
+        "ноя": "11",
+        "окт": "10",
+        "сен": "09",
+        "фев": "02",
+        "янв": "01",
+    }
+
+    tokens = release_date.replace(".", "").replace(",", "").split(" ")
+    return "-".join([tokens[2], months[tokens[1]], tokens[0].zfill(2)])
+
+
 def format_game_info(game_info):
     percentage_reviews = round(
         game_info["steam"]["total_positive"]
@@ -246,7 +279,7 @@ def format_game_info(game_info):
         2,
     )
     release_date = (
-        f"{game_info['steam']['release_date']['date']}"
+        f"{parse_release_date(game_info['steam']['release_date']['date'])}"
         if "date" in game_info["steam"]["release_date"]
         else ""
     )
@@ -325,7 +358,8 @@ def format_game_info(game_info):
     # breakpoint()
     return (
         f"|[{name}]({url})"
-        f"|{review_score_desc} ({percentage_reviews}% of {total_reviews})"
+        f"|{total_reviews}"
+        f"|{percentage_reviews}% ({review_score_desc})"
         f"|{release_date}"
         f"|{current_price}"
         f"|{historical_low}"
@@ -344,16 +378,17 @@ def format_game_info(game_info):
 def create_output(game_infos):
     header = (
         "|Game"
-        "|Steam Reviews"
+        "|Steam Reviews: Number"
+        "|Steam Reviews: Score"
         "|Release Date"
         "|Steam Price"
         "|Historic Lowest Price"
         "|Platforms"
         "|[Opencritic](https://opencritic.com/) (TCA/100)"
-        "|[How Long To Beat?](https://howlongtobeat.com/) Main Story: Hours"
+        "|[How Long To Beat?](https://howlongtobeat.com/) Main Story"
         "|"
     )
-    separator = "|:-|:-|:-|:-|:-|:-|:-|:-|"
+    separator = "|:-|:-|:-|:-|:-|:-|:-|:-|:-|"
     content = [format_game_info(x) for x in game_infos]
     content.insert(0, separator)
     content.insert(0, header)
