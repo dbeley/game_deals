@@ -75,7 +75,9 @@ def get_itad_plain(api_key, appid):
     result = requests.get(url).json()
     logger.debug(f"{url}: {result}")
     if result:
-        return result["data"]["plain"]
+        if isinstance(result["data"], dict):
+            if "plain" in result["data"]:
+                return result["data"]["plain"]
     return None
 
 
@@ -115,8 +117,12 @@ def get_itad_current_price(api_key, appid, plain, region, country):
 def get_itad_infos(api_key, appid):
     # plain is the internal itad id for a game
     plain = get_itad_plain(api_key, appid)
-    historical_low = get_itad_historical_low(api_key, plain, "us", "US")
-    current_price = get_itad_current_price(api_key, appid, plain, "us", "US")
+    if plain:
+        historical_low = get_itad_historical_low(api_key, plain, "us", "US")
+        current_price = get_itad_current_price(api_key, appid, plain, "us", "US")
+    else:
+        historical_low = None
+        current_price = None
     if plain and historical_low and current_price:
         return {
             "appid": appid,
