@@ -86,13 +86,13 @@ def get_itad_historical_low(api_key, plain, region, country):
     result = requests.get(url).json()
     logger.debug(f"{url}: {result}")
     if result:
-        return {
-            "historical_low_price": result["data"][plain]["price"],
-            "historical_low_currency": result[".meta"]["currency"],
-            "historical_low_shop": result["data"][plain]["shop"]["name"],
-        }
-    else:
-        return None
+        if "price" in result["data"][plain]:
+            return {
+                "historical_low_price": result["data"][plain]["price"],
+                "historical_low_currency": result[".meta"]["currency"],
+                "historical_low_shop": result["data"][plain]["shop"]["name"],
+            }
+    return None
 
 
 def get_itad_current_price(api_key, appid, plain, region, country):
@@ -150,28 +150,31 @@ def get_itad_infos(api_key, appid):
         return None
 
 
-def get_opencritic_id(search):
-    url = f"https://api.opencritic.com/api/game/search?criteria={search}"
-    result = requests.get(url).json()
+# def get_opencritic_id(search):
+#     url = f"https://api.opencritic.com/api/game/search?criteria={search}"
+#     result = requests.get(url).json()
+#     logger.debug(f"opencritic result: {result}")
 
-    if result:
-        return result[0]["id"]
-    else:
-        return None
+#     if result:
+#         if "API key is required" in result["message"]:
+#             return None
+#         return result[0]["id"]
+#     else:
+#         return None
 
 
-def get_opencritic_infos(search):
-    opencritic_id = get_opencritic_id(search)
-    if opencritic_id:
-        url = f"https://api.opencritic.com/api/game/{opencritic_id}"
-        result = requests.get(url).json()
+# def get_opencritic_infos(search):
+#     opencritic_id = get_opencritic_id(search)
+#     if opencritic_id:
+#         url = f"https://api.opencritic.com/api/game/{opencritic_id}"
+#         result = requests.get(url).json()
 
-        return {
-            "opencritic_tier": result["tier"],
-            "opencritic_median_score": result["medianScore"],
-            "opencritic_reviews_number": result["numReviews"],
-        }
-    return None
+#         return {
+#             "opencritic_tier": result["tier"],
+#             "opencritic_median_score": result["medianScore"],
+#             "opencritic_reviews_number": result["numReviews"],
+#         }
+#     return None
 
 
 def get_howlongtobeat_infos(search):
@@ -221,8 +224,8 @@ def get_game_infos(urls):
                 itad_infos = get_itad_infos(itad_api, appid)
                 logger.debug(f"ITAD: {itad_infos}")
                 # Opencritic
-                opencritic_infos = get_opencritic_infos(steam_infos["name"])
-                logger.debug(f"Opencritic: {opencritic_infos}")
+                # opencritic_infos = get_opencritic_infos(steam_infos["name"])
+                # logger.debug(f"Opencritic: {opencritic_infos}")
                 # HowLongToBeat
                 howlongtobeat_infos = get_howlongtobeat_infos(steam_infos["name"])
                 logger.debug(f"HowLongToBeat: {howlongtobeat_infos}")
@@ -235,7 +238,7 @@ def get_game_infos(urls):
                         "url": url,
                         "steam": steam_infos,
                         "itad": itad_infos,
-                        "opencritic": opencritic_infos,
+                        # "opencritic": opencritic_infos,
                         "howlongtobeat": howlongtobeat_infos,
                         # "protondb": protondb_infos,
                     }
@@ -273,6 +276,7 @@ def parse_release_date(release_date):
         "янв": "01",
     }
 
+    logger.debug(f"Parsing date {release_date}...")
     tokens = release_date.replace(".", "").replace(",", "").split(" ")
     return "-".join([tokens[2], months[tokens[1]], tokens[0].zfill(2)])
 
@@ -356,10 +360,10 @@ def format_game_info(game_info):
         howlongtobeat_url = ""
         howlongtobeat_format = ""
 
-    opencritic_median_score = ""
-    if game_info["opencritic"]:
-        if game_info["opencritic"]["opencritic_median_score"] > -1:
-            opencritic_median_score = game_info["opencritic"]["opencritic_median_score"]
+    # opencritic_median_score = ""
+    # if game_info["opencritic"]:
+    #     if game_info["opencritic"]["opencritic_median_score"] > -1:
+    #         opencritic_median_score = game_info["opencritic"]["opencritic_median_score"]
 
     # breakpoint()
     return (
@@ -371,7 +375,7 @@ def format_game_info(game_info):
         f"|{historical_low}"
         f"|{platforms}"
         # Opencritic
-        f"|{opencritic_median_score}"
+        # f"|{opencritic_median_score}"
         # HowLongToBeat
         f"|{howlongtobeat_format}"
         # ProtonDB
@@ -390,11 +394,12 @@ def create_output(game_infos):
         "|Steam Price"
         "|Historic Lowest Price"
         "|Platforms"
-        "|[Opencritic](https://opencritic.com/) (TCA/100)"
         "|[How Long To Beat?](https://howlongtobeat.com/) Main Story"
         "|"
     )
-    separator = "|:-|:-|:-|:-|:-|:-|:-|:-|:-|"
+    # "|[Opencritic](https://opencritic.com/) (TCA/100)"
+    # separator = "|:-|:-|:-|:-|:-|:-|:-|:-|:-|"
+    separator = "|:-|:-|:-|:-|:-|:-|:-|:-|"
     content = [format_game_info(x) for x in game_infos]
     content.insert(0, separator)
     content.insert(0, header)
