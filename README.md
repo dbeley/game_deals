@@ -34,6 +34,8 @@ https://store.steampowered.com/app/588650/Dead_Cells/
 https://store.steampowered.com/app/255710/Cities_Skylines/
 ```
 
+Example files are also provided see `example.txt` and `example-with-tiers.txt`.
+
 - Run the script: `python game_deals.py FILENAME.txt`
 
 This will create a file named `TIMESTAMP_game_deals.txt`.

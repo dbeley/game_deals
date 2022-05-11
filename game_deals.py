@@ -365,7 +365,6 @@ def format_game_info(game_info):
     #     if game_info["opencritic"]["opencritic_median_score"] > -1:
     #         opencritic_median_score = game_info["opencritic"]["opencritic_median_score"]
 
-    # breakpoint()
     return (
         f"|[{name}]({url})"
         f"|{total_reviews}"
@@ -385,7 +384,15 @@ def format_game_info(game_info):
     )
 
 
-def create_output(game_infos):
+def get_game_info_for_url(url, game_infos):
+    for i in game_infos:
+        if i["url"] == url:
+            return i
+    return None
+
+
+def create_output(game_infos, file_content):
+    content = []
     header = (
         "|Game"
         "|Steam Reviews: Number"
@@ -400,19 +407,39 @@ def create_output(game_infos):
     # "|[Opencritic](https://opencritic.com/) (TCA/100)"
     # separator = "|:-|:-|:-|:-|:-|:-|:-|:-|:-|"
     separator = "|:-|:-|:-|:-|:-|:-|:-|:-|"
-    content = [format_game_info(x) for x in game_infos]
-    content.insert(0, separator)
-    content.insert(0, header)
+    if not any([len(x) > 1 for x in file_content]):
+        content = [format_game_info(x) for x in game_infos]
+        content.insert(0, separator)
+        content.insert(0, header)
+    # new format with tiers
+    else:
+        for line in file_content:
+            if len(line) > 2:
+                raise ValueError(
+                    "File content malformed. See example file for help about the format."
+                )
+            if len(line) == 2:
+                content.append(f"**{line[0].replace('_', ' ')} - {line[1]}**\n")
+                content.append(header)
+                content.append(separator)
+            else:
+                game_info = get_game_info_for_url(line[0], game_infos)
+                if game_info:
+                    content.append(format_game_info(game_info))
+                else:
+                    logger.warning(
+                        f"Wasn't able to retrieve data for {line} in game_info."
+                    )
     return "\n".join(content)
 
 
 def main():
     args = parse_args()
     with open(args.file, "r") as f:
-        urls = [x.strip() for x in f.readlines()]
+        file_content = [x.strip().split(" ") for x in f.readlines()]
 
-    game_infos = get_game_infos(urls)
-    output = create_output(game_infos)
+    game_infos = get_game_infos([x[0] for x in file_content if len(x) == 1])
+    output = create_output(game_infos, file_content)
 
     output_filename = f"{int(time.time())}_game_deals.txt"
     with open(output_filename, "w") as f:
