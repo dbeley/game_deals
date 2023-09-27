@@ -182,12 +182,9 @@ def get_howlongtobeat_infos(search):
     if result:
         return {
             "howlongtobeat_url": result[0].game_web_link,
-            "howlongtobeat_main": result[0].gameplay_main,
-            "howlongtobeat_main_unit": result[0].gameplay_main_unit,
-            "howlongtobeat_main_extra": result[0].gameplay_main_extra,
-            "howlongtobeat_main_extra_unit": result[0].gameplay_main_extra_unit,
-            "howlongtobeat_completionist": result[0].gameplay_completionist,
-            "howlongtobeat_completionist_unit": result[0].gameplay_completionist_unit,
+            "howlongtobeat_main": result[0].main_story,
+            "howlongtobeat_main_extra": result[0].main_extra,
+            "howlongtobeat_completionist": result[0].completionist,
         }
     return None
 
@@ -254,6 +251,7 @@ def parse_release_date(release_date):
         "Feb": "02",
         "Mar": "03",
         "Apr": "04",
+        "MAY": "05",
         "May": "05",
         "Jun": "06",
         "Jul": "07",
@@ -274,6 +272,7 @@ def parse_release_date(release_date):
         "сен": "09",
         "фев": "02",
         "янв": "01",
+        "年": "01",
     }
 
     logger.debug(f"Parsing date {release_date}...")
@@ -333,13 +332,6 @@ def format_game_info(game_info):
             and game_info["howlongtobeat"]["howlongtobeat_main"] not in [-1]
             else ""
         )
-        howlongtobeat_main_unit = (
-            game_info["howlongtobeat"]["howlongtobeat_main_unit"]
-            if "howlongtobeat" in game_info
-            and "howlongtobeat_main_unit" in game_info["howlongtobeat"]
-            and game_info["howlongtobeat"]["howlongtobeat_main_unit"]
-            else ""
-        )
         howlongtobeat_url = (
             game_info["howlongtobeat"]["howlongtobeat_url"]
             if "howlongtobeat" in game_info
@@ -348,15 +340,13 @@ def format_game_info(game_info):
             else ""
         )
         howlongtobeat_format = (
-            f"[{howlongtobeat_main} {howlongtobeat_main_unit}]({howlongtobeat_url})"
+            f"[{howlongtobeat_main} Hours]({howlongtobeat_url})"
             if howlongtobeat_main != ""
-            and howlongtobeat_main_unit != ""
             and howlongtobeat_url != ""
             else ""
         )
     else:
         howlongtobeat_main = ""
-        howlongtobeat_main_unit = ""
         howlongtobeat_url = ""
         howlongtobeat_format = ""
 
